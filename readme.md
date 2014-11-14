@@ -7,7 +7,6 @@ IO lib for file operations - mostly for convenience on commmon actions
 ##Requirements
 
 - PHP >= 5.5
-- Guzzle >= 5.0
 - goodby/csv >= 1.1
 
 ##Installation
