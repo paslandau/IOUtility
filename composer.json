@@ -1,0 +1,24 @@
+{
+    "name": "paslandau/IOUtility",
+    "description" : "IO lib for file operations - mostly for convenience on commmon actions",
+    "authors": [
+        {
+            "name": "Pascal Landau",
+            "email": "kontakt@myseosolution.de",
+            "homepage": "http://www.myseosolution.de",
+            "role": "Developer"
+        }
+    ],
+	"autoload": {
+	    "psr-4": {
+	        "paslandau\\IOUtility\\": "src/"
+	    }
+	},
+    "require" : {
+        "php": "~5.5",
+        "goodby/csv": "~1.1"
+    },
+    "require-dev" : {
+        "phpunit/phpunit": "~3"
+    }
+}
