@@ -1,4 +1,5 @@
 #IOUtility
+[![Build Status](https://travis-ci.org/paslandau/IOUtility.svg?branch=master)](https://travis-ci.org/paslandau/IOUtility)
 
 IO lib for file operations - mostly for convenience on commmon actions
 

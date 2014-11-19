@@ -23,9 +23,79 @@ class IOUtil
      */
     public static function combinePaths($front, $back)
     {
-        $filepath = $front . DIRECTORY_SEPARATOR . $back;
-        return self::get_absolute_path($filepath);
+
+        if(self::isAbsolute($back)){
+            $filepath = $back;
+        }else {
+            $filepath = $front . DIRECTORY_SEPARATOR . $back;
+        }
+        return self::getAbsolutePath($filepath);
     }
+
+    /**
+     * Workaround for 'realpath' not being able to resolve non existant files
+     * @see http://php.net/manual/en/function.realpath.php#84012
+     * @param $path
+     * @return string
+     */
+    private static function getAbsolutePath($path)
+    {
+        /**
+         * Windows style
+         */
+        if(mb_substr($path,0,strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
+            $abs = DIRECTORY_SEPARATOR;
+        }
+
+        $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
+        $abs = "";
+        if(mb_substr($path,0,strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
+            $abs = DIRECTORY_SEPARATOR;
+        }
+        $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
+        $absolutes = array();
+        foreach ($parts as $part) {
+            if ('.' == $part) continue;
+            if ('..' == $part) {
+                array_pop($absolutes);
+            } else {
+                $absolutes[] = $part;
+            }
+        }
+        return $abs.implode(DIRECTORY_SEPARATOR, $absolutes);
+    }
+
+    /**
+     * Checks if the given filesystem $path is absolute.
+     * DO NOT USE FOR URLS!
+     * @see http://oik-plugins.eu/woocommerce-a2z/oik_api/path_is_absolute/
+     * @param string $path
+     * @return bool - true if path is absolute
+     */
+    public static function isAbsolute($path)
+    {
+
+        // Windows allows absolute paths like this.
+        if (preg_match('#^[a-zA-Z]:\\\\#', $path)) {
+            return true;
+        }
+
+        /*
+           * This is definitive if true but fails if $path does not exist or contains
+           * a symbolic link.
+           */
+        if (realpath($path) == $path) {
+            return true;
+        }
+
+        if (strlen($path) == 0 || $path[0] == '.') {
+            return false;
+        }
+
+        // A path starting with / or \ is absolute; anything else is relative.
+        return ($path[0] == '/' || $path[0] == '\\');
+    }
+
 
     /**
      * Gets the full content of the given $pathToFile
@@ -85,6 +155,23 @@ class IOUtil
             $url = ConvertMbstringEncoding::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
         }
         $file = new SplFileObject($url, "w");
+        $file->fwrite($content);
+    }
+
+    /**
+     * Appends $content to $pathToFile
+     * @param string $pathToFile
+     * @param string $content
+     * @param null|string $encoding . [optional]. Default: null.
+     */
+    public static function appendFileContent($pathToFile, $content, $encoding = null)
+    {
+        if ($encoding === null) {
+            $url = $pathToFile;
+        } else {
+            $url = ConvertMbstringEncoding::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+        }
+        $file = new SplFileObject($url, "a");
         $file->fwrite($content);
     }
 
@@ -252,27 +339,6 @@ class IOUtil
         return $rows;
     }
 
-    /**
-     * Workaround for 'realpath' not being able to resolve non existant files
-     * @see http://php.net/manual/en/function.realpath.php#84012
-     * @param $path
-     * @return string
-     */
-    private static function get_absolute_path($path)
-    {
-        $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
-        $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
-        $absolutes = array();
-        foreach ($parts as $part) {
-            if ('.' == $part) continue;
-            if ('..' == $part) {
-                array_pop($absolutes);
-            } else {
-                $absolutes[] = $part;
-            }
-        }
-        return implode(DIRECTORY_SEPARATOR, $absolutes);
-    }
 }
 
 ConvertMbstringEncoding::register();
