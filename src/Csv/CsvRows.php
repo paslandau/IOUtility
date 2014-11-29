@@ -12,11 +12,13 @@ class CsvRows extends \ArrayObject
     private $hasHeadline;
 
     /**
+     * Column names are keys
      * @var string[]
      */
     private $headline;
 
     /**
+     * Column indexes are keys
      * @var string[]
      */
     private $headlineLookup;
@@ -29,6 +31,18 @@ class CsvRows extends \ArrayObject
     public function hasHeadline()
     {
         return $this->hasHeadline;
+    }
+
+    /**
+     * @param bool $assoc [optional]. Default: false. If true, the result will have the column names as keys (and the indexes as values) instead of numeric indexes and column names as keys.
+     * @return string[]|int[]
+     */
+    public function getHeadline($assoc = false)
+    {
+        if($assoc){
+            return $this->headline;
+        }
+        return $this->headlineLookup;
     }
 
     public function setHeadline(array $headline)
@@ -51,19 +65,31 @@ class CsvRows extends \ArrayObject
         return $this->headlineLookup[$index];
     }
 
-    public function addRow(array $row)
+    /**
+     * @param string[]|CsvRow $row
+     */
+    public function addRow($row)
     {
-        $this->append(new CsvRow($this, $row));
+        if(!$row instanceof CsvRow){
+            $row = new CsvRow($this, $row);
+        }
+        $this->append($row);
     }
 
-    public function toArray($withHeader = true)
+    /**
+     * @param bool $withHeader - if true, an additional line with the header fields is added on top
+     * @param bool $assoc [optional]. Default: true. If true the keys of the rows will be associative instead of numeric (if a headline was provided)
+     * @return array
+     */
+    public function toArray($withHeader = true, $assoc = true)
     {
         $arr = [];
         if ($withHeader && $this->hasHeadline()) {
             $arr[] = $this->headlineLookup;
         }
+        /** @var CsvRow $row */
         foreach ($this as $row) {
-            $arr[] = $row->toArray();
+            $arr[] = $row->toArray($assoc);
         }
         return $arr;
     }

@@ -1,6 +1,7 @@
 {
     "name": "paslandau/IOUtility",
-    "description" : "IO lib for file operations - mostly for convenience on commmon actions",
+    "license": "MIT",
+    "description" : "IO library for file operations - mostly for convenience on commmon actions",
     "authors": [
         {
             "name": "Pascal Landau",
@@ -16,6 +17,7 @@
 	},
     "require" : {
         "php": "~5.5",
+        "ext-mbstring": "*",
         "goodby/csv": "~1.1"
     },
     "require-dev" : {

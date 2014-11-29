@@ -25,8 +25,16 @@ class CsvRow implements \ArrayAccess, \Iterator
         $this->row = $row;
     }
 
-    public function toArray()
+    /**
+     * @param bool $assoc - if true, tries to uses
+     * @return array|\mixed[]
+     */
+    public function toArray($assoc = true)
     {
+        if($assoc && $this->parent->hasHeadline()){
+            $headline = $this->parent->getHeadline(false);
+            return array_combine($headline,$this->row);
+        }
         return $this->row;
     }
 
@@ -108,8 +116,8 @@ class CsvRow implements \ArrayAccess, \Iterator
 
     public function key()
     {
-        $name = key($this->row);
-        return $this->parent->getColumnNameByIndex($name);
+        $index= key($this->row);
+        return $this->parent->getColumnNameByIndex($index);
     }
 
     public function next()

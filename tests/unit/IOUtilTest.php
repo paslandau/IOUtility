@@ -55,8 +55,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $this->assertTrue(!file_exists($file));
 
         $rows = [
-            ["col1","col2","colü"],
-            ["line1","line2","lineü"],
+            ["col1" => "line1", "col2" => "line2", "col3" => "lineü"],
         ];
 
         $hasHeader = true;
@@ -69,7 +68,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
         $rowsOut = IOUtil::readCsvFile($file, $hasHeader,$encoding,$delimiter,$enclosure,$escape);
 
-        $this->assertEquals(serialize($rows),serialize($rowsOut->toArray()));
+        $this->assertEquals(serialize($rows),serialize($rowsOut->toArray(false)));
     }
 
     public function test_ShouldNotStripTrailingSlash(){

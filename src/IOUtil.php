@@ -272,7 +272,7 @@ class IOUtil
     /**
      * @param string $pathToFile
      * @param CsvRows|string[] $rows
-     * @param bool $withHeader [optional]. Default: true.
+     * @param bool $withHeader [optional]. Default: true. Adds an additional line on top (uses CsvRows->headline OR the keys of the first row of the string[])
      * @param null $encoding [optional]. Default: null.
      * @param string $delimiter [optional]. Default: ,.
      * @param string $enclosure [optional]. Default: ".
@@ -290,6 +290,12 @@ class IOUtil
         $config->setEscape($escape);
         if ($rows instanceof CsvRows) {
             $rows = $rows->toArray($withHeader);
+        }else{ // is a normal array
+            if(count($rows) > 0){
+                $first = reset($rows);
+                $keys = array_keys($first);
+                $rows = array_merge([$keys],$rows);
+            }
         }
         $exporter = new Exporter($config);
         $exporter->export($pathToFile, $rows);
