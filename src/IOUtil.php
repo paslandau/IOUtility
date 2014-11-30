@@ -23,7 +23,6 @@ class IOUtil
      */
     public static function combinePaths($front, $back)
     {
-
         if(self::isAbsolute($back)){
             $filepath = $back;
         }else {
@@ -40,17 +39,14 @@ class IOUtil
      */
     private static function getAbsolutePath($path)
     {
-        /**
-         * Windows style
-         */
-        if(mb_substr($path,0,strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
-            $abs = DIRECTORY_SEPARATOR;
-        }
-
         $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
         $abs = "";
         if(mb_substr($path,0,strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
             $abs = DIRECTORY_SEPARATOR;
+        }
+        $end = "";
+        if(mb_substr($path,-strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
+            $end = DIRECTORY_SEPARATOR;
         }
         $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
         $absolutes = array();
@@ -62,7 +58,7 @@ class IOUtil
                 $absolutes[] = $part;
             }
         }
-        return $abs.implode(DIRECTORY_SEPARATOR, $absolutes);
+        return $abs.implode(DIRECTORY_SEPARATOR, $absolutes).$end;
     }
 
     /**
@@ -267,6 +263,32 @@ class IOUtil
             return mkdir($pathToDir, $mode, $recursive);
         }
         return true;
+    }
+
+    /**
+     * Copies the content of the entire directory from $pathToSourceDir to $pathToTargetDir
+     * @param string $pathToSourceDir
+     * @param string $pathToTargetDir
+     * @see http://stackoverflow.com/a/7775949/413531
+     */
+    public static function copyDirectory($pathToSourceDir, $pathToTargetDir)
+    {
+        if (!is_dir($pathToSourceDir)) {
+            throw new \UnexpectedValueException("pathToSourceDir '$pathToSourceDir' must be a directory!");
+        }
+        self::createDirectoryIfNotExists($pathToTargetDir, 0777, true);
+        if(!is_dir($pathToTargetDir)) {
+            throw new \UnexpectedValueException("pathToTargetDir '$pathToTargetDir' must be a directory!");
+        }
+        $iterator = new \RecursiveIteratorIterator (new \RecursiveDirectoryIterator ($pathToSourceDir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($iterator as $item) {
+            $new = self::combinePaths($pathToTargetDir, $iterator->getSubPathName());
+            if ($item->isDir() && !file_exists($new)) {
+                mkdir($new);
+            } else {
+                copy($item, $new);
+            }
+        }
     }
 
     /**

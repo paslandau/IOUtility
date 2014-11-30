@@ -1,5 +1,5 @@
 {
-    "name": "paslandau/IOUtility",
+    "name": "paslandau/io-utility",
     "license": "MIT",
     "description" : "IO library for file operations - mostly for convenience on commmon actions",
     "authors": [

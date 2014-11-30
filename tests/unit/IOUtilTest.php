@@ -5,13 +5,14 @@ use paslandau\IOUtility\IOUtil;
 class IOUtilTest extends PHPUnit_Framework_TestCase {
 
     public static function getTmpDirPath(){
-        return __DIR__."/tmp";
+        return IOUtil::combinePaths(__DIR__,"tmp");
     }
 
     public static function setupBeforeClass(){
         mb_internal_encoding("utf-8");
 
         $dir = self::getTmpDirPath();
+        IOUtil::deleteDirectory($dir);
         IOUtil::createDirectoryIfNotExists($dir);
     }
 
@@ -88,7 +89,70 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
             $actual = IOUtil::combinePaths($vals[0],$vals[1]);
             $this->assertEquals($expected, $actual, "$name failed, front: '{$vals[0]}', back: '{$vals[1]}'");
         }
+    }
 
+    public function test_copyDirectory(){
+        $temp = self::getTmpDirPath();
+
+        $parent = IOUtil::combinePaths($temp,"test/");
+        IOUtil::createDirectoryIfNotExists($parent);
+        $files = [
+            "foo.txt" => "foo",
+            "bar" => "bar",
+        ];
+        foreach($files as $file => $content){
+            $path = IOUtil::combinePaths($parent,$file);
+            IOUtil::writeFileContent($path,$content);
+        }
+
+        $pathToTarget = IOUtil::combinePaths($temp,"temp2/foo/");
+        if(file_exists($pathToTarget)){
+            IOUtil::deleteDirectory($pathToTarget);
+        }
+        IOUtil::copyDirectory($parent,$pathToTarget);
+
+        $exists = file_exists($pathToTarget);
+        $this->assertTrue($exists,"'$pathToTarget' should exist, but it doesn't!");
+
+        $resfiles = IOUtil::getFiles($pathToTarget,true,true,true);
+        foreach($resfiles as $file){
+            $content = IOUtil::getFileContent($file);
+            $cleanedFile = str_replace($pathToTarget, "",$file);
+            $this->assertArrayHasKey($cleanedFile,$files,"File $cleanedFile not expected!");
+            $this->assertEquals($files[$cleanedFile],$content,"Content does match between $cleanedFile and $file");
+        }
+    }
+
+    public function test_rename(){
+        $temp = self::getTmpDirPath();
+
+        $parent = IOUtil::combinePaths($temp,"test/");
+        IOUtil::createDirectoryIfNotExists($parent);
+        $files = [
+            "foo.txt" => "foo",
+            "bar" => "bar",
+        ];
+        foreach($files as $file => $content){
+            $path = IOUtil::combinePaths($parent,$file);
+            IOUtil::writeFileContent($path,$content);
+        }
+
+        $pathToTarget = IOUtil::combinePaths($temp,"temp2/");
+        /**
+         * CAUTION: $pathToTarget must not exist  but the parent folder must exist!
+         */
+        rename($parent,$pathToTarget);
+
+        $exists = file_exists($pathToTarget);
+        $this->assertTrue($exists,"'$pathToTarget' should exist, but it doesn't!");
+
+        $resfiles = IOUtil::getFiles($pathToTarget,true,true,true);
+        foreach($resfiles as $file){
+            $content = IOUtil::getFileContent($file);
+            $cleanedFile = str_replace($pathToTarget, "",$file);
+            $this->assertArrayHasKey($cleanedFile,$files,"File $cleanedFile not expected!");
+            $this->assertEquals($files[$cleanedFile],$content,"Content does match between $cleanedFile and $file");
+        }
     }
 }
  

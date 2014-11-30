@@ -1,5 +1,5 @@
-#IOUtility
-[![Build Status](https://travis-ci.org/paslandau/IOUtility.svg?branch=master)](https://travis-ci.org/paslandau/IOUtility)
+#io-utility
+[![Build Status](https://travis-ci.org/paslandau/io-utility.svg?branch=master)](https://travis-ci.org/paslandau/io-utility)
 
 IO library for file operations - mostly for convenience on commmon actions
 
@@ -12,7 +12,7 @@ IO library for file operations - mostly for convenience on commmon actions
 
 ##Installation
 
-The recommended way to install IOUtility is through [Composer](http://getcomposer.org/).
+The recommended way to install io-utility is through [Composer](http://getcomposer.org/).
 
     curl -sS https://getcomposer.org/installer | php
 
@@ -22,11 +22,11 @@ Next, update your project's composer.json file to include IOUtility:
         "repositories": [
             {
                 "type": "git",
-                "url": "https://github.com/paslandau/IOUtility.git"
+                "url": "https://github.com/paslandau/io-utility.git"
             }
         ],
         "require": {
-             "paslandau/IOUtility": "~0"
+             "paslandau/io-utility": "~0"
         }
     }
 
