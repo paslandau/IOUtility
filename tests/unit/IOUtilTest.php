@@ -138,9 +138,11 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         }
 
         $pathToTarget = IOUtil::combinePaths($temp,"temp2/");
+
         /**
          * CAUTION: $pathToTarget must not exist  but the parent folder must exist!
          */
+        IOUtil::deleteDirectory($pathToTarget);
         rename($parent,$pathToTarget);
 
         $exists = file_exists($pathToTarget);

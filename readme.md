@@ -19,14 +19,10 @@ The recommended way to install io-utility is through [Composer](http://getcompos
 Next, update your project's composer.json file to include IOUtility:
 
     {
-        "repositories": [
-            {
-                "type": "git",
-                "url": "https://github.com/paslandau/io-utility.git"
-            }
-        ],
+        "repositories": [ { "type": "composer", "url": "http://packages.myseosolution.de/"} ],
+        "minimum-stability": "dev",
         "require": {
-             "paslandau/io-utility": "~0"
+             "paslandau/io-utility": "dev-master"
         }
     }
 
