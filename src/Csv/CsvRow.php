@@ -31,7 +31,7 @@ class CsvRow implements \ArrayAccess, \Iterator
      */
     public function toArray($assoc = true)
     {
-        if($assoc && $this->parent->hasHeadline()){
+        if($assoc){
             $headline = $this->parent->getHeadline(false);
             return array_combine($headline,$this->row);
         }

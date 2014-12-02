@@ -7,11 +7,6 @@ class CsvRows extends \ArrayObject
 {
 
     /**
-     * @var bool
-     */
-    private $hasHeadline;
-
-    /**
      * Column names are keys
      * @var string[]
      */
@@ -23,14 +18,11 @@ class CsvRows extends \ArrayObject
      */
     private $headlineLookup;
 
-    public function __construct($hasHeadline = true)
+    public function __construct(array $headline = null)
     {
-        $this->hasHeadline = $hasHeadline;
-    }
-
-    public function hasHeadline()
-    {
-        return $this->hasHeadline;
+        if($headline !== null){
+            $this->setHeadline($headline);
+        }
     }
 
     /**
@@ -66,6 +58,35 @@ class CsvRows extends \ArrayObject
     }
 
     /**
+     * @param CsvRow $value
+     */
+    public function append($value){
+        if(!$value instanceof CsvRow){
+            throw new \InvalidArgumentException("row must be of type CsvRow");
+        }
+        parent::append($value);
+    }
+
+    /**
+     * @param mixed $index
+     * @param CsvRow $newval
+     */
+    public function offsetSet($index, $newval){
+        if(!$newval instanceof CsvRow){
+            throw new \InvalidArgumentException("row must be of type CsvRow");
+        }
+        parent::offsetSet($index, $newval);
+    }
+
+    /**
+     * @param mixed $index
+     * @return CsvRow $newval
+     */
+    public function offsetGet($index){
+        return parent::offsetGet($index);
+    }
+
+    /**
      * @param string[]|CsvRow $row
      */
     public function addRow($row)
@@ -77,14 +98,14 @@ class CsvRows extends \ArrayObject
     }
 
     /**
-     * @param bool $withHeader - if true, an additional line with the header fields is added on top
+     * @param bool $withHeader [optional]. Default: false. If true, an additional line with the header fields is added as first line.
      * @param bool $assoc [optional]. Default: true. If true the keys of the rows will be associative instead of numeric (if a headline was provided)
      * @return array
      */
-    public function toArray($withHeader = true, $assoc = true)
+    public function toArray($withHeader = false, $assoc = true)
     {
         $arr = [];
-        if ($withHeader && $this->hasHeadline()) {
+        if ($withHeader && $this->headlineLookup !== null) {
             $arr[] = $this->headlineLookup;
         }
         /** @var CsvRow $row */

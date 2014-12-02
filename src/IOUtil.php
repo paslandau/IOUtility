@@ -313,7 +313,7 @@ class IOUtil
         if ($rows instanceof CsvRows) {
             $rows = $rows->toArray($withHeader);
         }else{ // is a normal array
-            if(count($rows) > 0){
+            if(count($rows) > 0 && $withHeader){
                 $first = reset($rows);
                 $keys = array_keys($first);
                 $rows = array_merge([$keys],$rows);
@@ -345,13 +345,13 @@ class IOUtil
         $config->setIgnoreHeaderLine(false);
         $lexer = new Lexer($config);
         $interpreter = new Interpreter();
-        $rows = new CsvRows($hasHeader);
+        $rows = new CsvRows();
         $first = true;
-        $interpreter->addObserver(function (array $row) use (&$rows, &$first) {
+        $interpreter->addObserver(function (array $row) use (&$rows, &$first, $hasHeader) {
             if ($first) {
                 $first = false;
                 $headline = [];
-                if ($rows->hasHeadline()) {
+                if ($hasHeader) {
                     foreach ($row as $key => $header) {
                         $headline[$key] = $header;
                     }
