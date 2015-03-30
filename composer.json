@@ -23,7 +23,7 @@
         "goodby/csv": "~1.1"
     },
     "require-dev" : {
-        "phpunit/phpunit": "~3",
+        "phpunit/phpunit": "~4",
         "paslandau/array-utility": "dev-master"
     }
 }

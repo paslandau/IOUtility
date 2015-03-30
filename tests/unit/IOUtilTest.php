@@ -71,7 +71,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
         $rowsOut = IOUtil::readCsvFile($file, $hasHeader,$encoding,$delimiter,$enclosure,$escape);
 
-        $this->assertEquals(serialize($rows),serialize($rowsOut->toArray(false)));
+        $this->assertEquals(serialize($rows),serialize($rowsOut));
     }
 
     public function test_ShouldNotStripTrailingSlash(){
@@ -159,107 +159,291 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         }
     }
 
-    public function test_writeCsvFile_readCsvFile()
-    {
-        $temp = self::getTmpDirPath();
-        $parent = IOUtil::combinePaths($temp, "test_writeCsvFile_readCsvFile/");
-        IOUtil::createDirectoryIfNotExists($parent);
+    private function getTestDataForWriting($seperator,$quotation){
+        $lineEnding = "\n";
 
-        $encoding = mb_internal_encoding();
-        $escape = "\"";
-        $enclosure = "\"";
-        $delimiter = ",";
-        $withHeader = true;
-        $tests = [
-            "empty-array" => [
-                "input" => [],
-            ],
-            "array-one-empty-line" => [
-                "input" => [[]],
-                "expected" => [],
-            ],
-            "array-one-line-numerical-columns" => [
-                "input" => [[0 => "foo", 1 => "bar"]],
-            ],
-            "array-one-line-text-columns" => [
-                "input" => [["foo" => "foo", "bar" => "bar"]],
-            ],
-            "array-one-line-with-null" => [
-                "input" => [["foo" => "foo", "bar" => null]],
-                "expected" => [["foo" => "foo", "bar" => ""]],
-            ],
-            "array-2-lines" => [
-                "input" => [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test"],]
-            ],
-            "array-2-lines-different-column-names" => [
-                "input" => [["foo" => "foo", "bar" => "bar"], ["foo_diff" => "baz", "bar_diff" => "test"],],
-                "expected" => [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test"],]
-            ],
-            "array-2-lines-different-column-number-first" => [
-                "input" => [["foo" => "foo", "bar" => "bar", "baz" => "boom"], ["foo" => "baz", "bar" => "test"],],
-                "expected" => StrictViolationException::class
-            ],
-            "array-2-lines-different-column-number-second" => [
-                "input" => [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test", "baz" => "boom"],],
-                "expected" => StrictViolationException::class
-            ],
-            "array-1-line-escape" => [
-                "input" => [["foo" => "foo", "bar" => "the escape > $escape < "]]
-            ],
-            "array-1-line-enclosure" => [
-                "input" => [["foo" => "foo", "bar" => "the enclosure > $enclosure < "]]
-            ],
-            "array-1-line-delimiter" => [
-                "input" => [["foo" => "foo", "bar" => "the delimiter > $delimiter < "]]
-            ],
-            "array-1-line-crlf" => [
-                "input" => [["foo" => "foo", "bar" => "the crlf > \r\n < "]]
-            ],
-            // https://bugs.php.net/bug.php?id=43225
-            // TODO add this test again when bug is fixed
-//            "array-1-line-slash-double-quote-bug" => [
-//                "input" => [["foo" => "foo", "bar" => "the bug > \\\" < "]]
-//            ],
-        ];
+        $tests["empty-input"]["input"] = [];
+        $tests["empty-input"]["expected"] = "";
+        $tests["empty-input"]["expected-headline"] = "";
 
+        $tests["input-one-empty-line"]["input"] = [[]];
+        $tests["input-one-empty-line"]["expected"] = "" . $lineEnding;
+        $tests["input-one-empty-line"]["expected-headline"] = $lineEnding . $lineEnding;
+
+        $tests["input-one-line-numerical-columns"]["input"] = [[0 => "foo", 1 => "bar"]];
+        $tests["input-one-line-numerical-columns"]["expected"] = "foo{$seperator}bar" . $lineEnding;
+        $tests["input-one-line-numerical-columns"]["expected-headline"] = "0{$seperator}1{$lineEnding}foo{$seperator}bar" . $lineEnding;
+
+        $tests["input-one-line-text-columns"]["input"] = [["foo" => "foo", "bar" => "bar"]];
+        $tests["input-one-line-text-columns"]["expected"] = "foo{$seperator}bar" . $lineEnding;
+        $tests["input-one-line-text-columns"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar" . $lineEnding;
+
+        $tests["input-one-line-text-columns-encoding-test"]["input"] = [["föäü" => "föäü", "baß" => "baß"]];
+        $tests["input-one-line-text-columns-encoding-test"]["expected"] = "föäü{$seperator}baß" . $lineEnding;
+        $tests["input-one-line-text-columns-encoding-test"]["expected-headline"] = "föäü{$seperator}baß{$lineEnding}föäü{$seperator}baß" . $lineEnding;
+
+        $tests["input-one-line-with-null"]["input"] = [["foo" => "foo", "bar" => null]];
+        $tests["input-one-line-with-null"]["expected"] = "foo{$seperator}" . $lineEnding;
+        $tests["input-one-line-with-null"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}" . $lineEnding;
+
+        $tests["input-2-lines"]["input"] = [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test"]];
+        $tests["input-2-lines"]["expected"] = "foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+        $tests["input-2-lines"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+
+        $tests["input-2-lines-different-column-names"]["input"] = [["foo" => "foo", "bar" => "bar"], ["foo_diff" => "baz", "bar_diff" => "test"]];
+        $tests["input-2-lines-different-column-names"]["expected"] = "foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+        $tests["input-2-lines-different-column-names"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+
+        $tests["input-1-line-quotation"]["input"] = [["foo" => "foo", "bar" => "the escape > $quotation < "]];
+        $tests["input-1-line-quotation"]["expected"] = "foo{$seperator}{$quotation}the escape > {$quotation}$quotation < {$quotation}" . $lineEnding;
+        $tests["input-1-line-quotation"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the escape > {$quotation}$quotation < {$quotation}" . $lineEnding;
+
+        $tests["input-1-line-delimiter"]["input"] = [["foo" => "foo", "bar" => "the delimiter > $seperator < "]];
+        $tests["input-1-line-delimiter"]["expected"] = "foo{$seperator}{$quotation}the delimiter > $seperator < {$quotation}" . $lineEnding;
+        $tests["input-1-line-delimiter"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the delimiter > $seperator < {$quotation}" . $lineEnding;
+
+        $tests["input-1-line-crlf"]["input"] = [["foo" => "foo", "bar" => "the crlf > $lineEnding < "]];
+        $tests["input-1-line-crlf"]["expected"] = "foo{$seperator}{$quotation}the crlf > $lineEnding < {$quotation}" .$lineEnding;
+        $tests["input-1-line-crlf"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the crlf > $lineEnding < {$quotation}" .$lineEnding;
+
+//             https://bugs.php.net/bug.php?id=43225
+//             TODO add this test again when bug is fixed
+//        $tests["input-1-line-slash-double-quote-bug"]["input"] = [["foo" => "foo", "bar" => "the bug > \\\" < "]];
+//        $tests["input-1-line-slash-double-quote-bug"]["expected"] = "foo{$seperator}{$quotation}the bug > \\\"\" < {$quotation}" .$lineEnding;
+//        $tests["input-1-line-slash-double-quote-bug"]["expected-headline"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the bug > \\\"\" < {$quotation}" .$lineEnding;
+
+        return $tests;
+    }
+
+    private function getTestDataForReading($seperator,$quotation){
+        $lineEnding = "\n";
+
+        $tests["empty-input"]["input"] = "";
+        $tests["empty-input"]["expected-headline"] = "InvalidArgumentException";
+        $tests["empty-input"]["expected"] = [];
+
+        $tests["input-one-empty-line"]["input"] = $lineEnding . $lineEnding;
+        $tests["input-one-empty-line"]["expected-headline"] = "InvalidArgumentException";
+        $tests["input-one-empty-line"]["expected"] = [[null],[null]];
+
+        $tests["input-one-line-numerical-columns"]["input"] = "0{$seperator}1{$lineEnding}foo{$seperator}bar" . $lineEnding;
+        $tests["input-one-line-numerical-columns"]["expected-headline"] = [[0 => "foo", 1 => "bar"]];
+
+        $tests["input-one-line-text-columns"]["expected-headline"] = [["foo" => "foo", "bar" => "bar"]];
+        $tests["input-one-line-text-columns"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar" . $lineEnding;
+
+        $tests["input-one-line-text-columns-encoding-test"]["expected-headline"] = [["föäü" => "föäü", "baß" => "baß"]];
+        $tests["input-one-line-text-columns-encoding-test"]["input"] = "föäü{$seperator}baß{$lineEnding}föäü{$seperator}baß" . $lineEnding;
+
+        $tests["input-one-line-with-null"]["expected-headline"] = [["foo" => "foo", "bar" => ""]];
+        $tests["input-one-line-with-null"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}" . $lineEnding;
+
+        $tests["input-2-lines"]["expected-headline"] = [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test"]];
+        $tests["input-2-lines"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+
+        // this test makes no sense during reading
+//        $tests["input-2-lines-different-column-names"]["expected-headline"] = [["foo" => "foo", "bar" => "bar"], ["foo_diff" => "baz", "bar_diff" => "test"]];
+//        $tests["input-2-lines-different-column-names"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
+
+        $tests["input-1-line-quotation"]["expected-headline"] = [["foo" => "foo", "bar" => "the escape > $quotation < "]];
+        $tests["input-1-line-quotation"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the escape > {$quotation}$quotation < {$quotation}" . $lineEnding;
+
+        $tests["input-1-line-delimiter"]["expected-headline"] = [["foo" => "foo", "bar" => "the delimiter > $seperator < "]];
+        $tests["input-1-line-delimiter"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the delimiter > $seperator < {$quotation}" . $lineEnding;
+
+        $tests["input-1-line-crlf"]["expected-headline"] = [["foo" => "foo", "bar" => "the crlf > $lineEnding < "]];
+        $tests["input-1-line-crlf"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the crlf > $lineEnding < {$quotation}" .$lineEnding;
+
+//        $tests["input-1-line-slash-double-quote-bug"]["expected-headline"] = [["foo" => "foo", "bar" => "the bug > \\\" < "]];
+//        $tests["input-1-line-slash-double-quote-bug"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the bug > \\\"\" < {$quotation}" .$lineEnding;
+
+        return $tests;
+    }
+
+    private function _writingTest($encoding,$hasHeadline,$seperator,$quotation,$callingMethod){
+        $tests = $this->getTestDataForWriting($seperator,$quotation);
+
+        $tmpFolder = $this->getTmpDirPath();
+        $errors = [];
         foreach ($tests as $test => $values) {
             $input = $values["input"];
-            $expected = $input;
-            if (array_key_exists("expected", $values)) {
-                $expected = $values["expected"];
+            $expected = $values["expected"];
+            if($hasHeadline){
+                $expected = $values["expected-headline"];
             }
 
             $actual = null;
-            try {
-                $path = IOUtil::combinePaths($parent, $test . ".csv");
-                IOUtil::writeCsvFile($path, $input, $withHeader, $encoding, $delimiter, $enclosure, $escape);
-                $actualCsv = IOUtil::readCsvFile($path, $withHeader, $encoding, $delimiter, $enclosure, $escape);
-                $actual = $actualCsv->toArray(false, true);
 
-            } catch (Exception $e) {
+            $excMsg = "";
+            try {
+                $m = end(explode(":",$callingMethod));
+                $path = IOUtil::combinePaths($tmpFolder, $test . "_{$m}_write.csv");
+                IOUtil::writeCsvFile($path, $input, $hasHeadline, $encoding, $seperator, $quotation);
+                $actual = IOUtil::getFileContent($path, $encoding);
+
+            } catch (\Exception $e) {
                 $actual = get_class($e);
+                $excMsg = " (".$e->getMessage().")";
             }
 
             $msg = [
                 "Error at $test:",
-                "WithHeader: " . ($withHeader ? "true" : "false"),
+                "WithHeader: " . ($hasHeadline ? "true" : "false"),
                 "Encoding: " . $encoding,
-                "Delimiter: " . $delimiter,
-                "Enclosure: " . $enclosure,
-                "Escape: " . $escape,
+                "Separator: " . $seperator,
+                "Quotation: " . $quotation,
                 "Input: " . json_encode($input),
-                "Excpected: " . json_encode($expected),
-                "Actual: " . json_encode($actual),
+                "Excpected: \t" . json_encode($expected),
+                "Actual: \t" . json_encode($actual).$excMsg,
             ];
             $msg = implode("\n", $msg);
-//                echo $msg . "\n\n\n";
-            if (is_array($expected)) {
-                $this->assertTrue(ArrayUtil::equals($actual, $expected, true, true, true), $msg);
-            } else {
-                $this->assertEquals($expected, $actual, $msg);
+
+            // do not use assertions since they terminate the test on error
+            if($actual != $expected){
+                $errors[] = $msg;
             }
         }
-        echo "";
+        $this->assertCount(0, $errors, "[".get_called_class()." => ".$callingMethod."] Errors: ".count($errors)."\n\n".implode("\n\n", $errors));
+    }
+
+    private function _readingTest($encoding,$hasHeadline,$seperator,$quotation,$callingMethod){
+        $tests = $this->getTestDataForReading($seperator,$quotation);
+
+        $tmpFolder = $this->getTmpDirPath();
+        $errors = [];
+        foreach ($tests as $test => $values) {
+            $input = $values["input"];
+            $expected = $values["expected-headline"];
+            if(!$hasHeadline){
+                if(array_key_exists("expected",$values) && is_array($values["expected"])){
+                    $expected = $values["expected"];
+                }else {
+                    $first = null;
+                    foreach ($expected as $key => $line) {
+                        if ($first === null) {
+                            $first = array_keys($line);
+                        }
+                        $expected[$key] = array_values($line);
+                    }
+                    if ($first != null) {
+                        $expected = array_merge([$first], $expected);
+                    }
+                }
+            }
+
+            $actual = null;
+
+            $excMsg = "";
+            try {
+                $m = end(explode(":",$callingMethod));
+                $path = IOUtil::combinePaths($tmpFolder, $test . "_{$m}_read.csv");
+                IOUtil::writeFileContent($path, $input, $encoding);
+                $actual = IOUtil::readCsvFile($path, $hasHeadline, $encoding, $seperator, $quotation);
+
+            } catch (\Exception $e) {
+                $actual = get_class($e);
+                $excMsg = " (".$e->getMessage().")";
+            }
+
+            $msg = [
+                "Error at $test:",
+                "WithHeader: " . ($hasHeadline ? "true" : "false"),
+                "Encoding: " . $encoding,
+                "Separator: " . $seperator,
+                "Quotation: " . $quotation,
+                "Input: " . json_encode($input),
+                "Excpected: \t" . json_encode($expected),
+                "Actual: \t" . json_encode($actual).$excMsg,
+            ];
+            $msg = implode("\n", $msg);
+
+            // do not use assertions since they terminate the test on error
+            if($actual != $expected){
+                $errors[] = $msg;
+            }
+        }
+        $this->assertCount(0, $errors, "[".get_called_class()." => ".$callingMethod."] Errors: ".count($errors)."\n\n".implode("\n\n", $errors));
+    }
+
+    public function test_ShouldWriteConformingToRfc4180()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = null;
+        $hasHeadline = false;
+
+        $this->_writingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldWriteInSpecificEncoding()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = "cp1252";
+        $hasHeadline = false;
+
+        $this->_writingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldWriteHeadline()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = null;
+        $hasHeadline = true;
+
+        $this->_writingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldWriteWithVaryingParameters()
+    {
+        $quotation = "#";
+        $seperator = ";";
+        $encoding = null;
+        $hasHeadline = true;
+
+        $this->_writingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldReadConformingToRfc4180()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = null;
+        $hasHeadline = false;
+
+        $this->_readingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+
+    public function test_ShouldReadSpecificEncoding()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = "cp1252";
+        $hasHeadline = false;
+
+        $this->_readingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldReadHeadline()
+    {
+        $quotation = "\"";
+        $seperator = ",";
+        $encoding = null;
+        $hasHeadline = true;
+
+        $this->_readingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldReadWithVaryingParameters()
+    {
+        $quotation = "#";
+        $seperator = ";";
+        $encoding = null;
+        $hasHeadline = false;
+
+        $this->_readingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
     }
 }
  

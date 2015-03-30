@@ -8,6 +8,8 @@ use Goodby\CSV\Import\Standard\Interpreter;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\LexerConfig;
 use Goodby\CSV\Import\Standard\StreamFilter\ConvertMbstringEncoding;
+use League\Csv\Reader;
+use League\Csv\Writer;
 use paslandau\IOUtility\Csv\CsvRows;
 use paslandau\IOUtility\Exceptions\IOException;
 use SplFileObject;
@@ -119,7 +121,7 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            $url = ConvertMbstringEncoding::getFilterURL($pathToFile, $encoding);
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
 
         $file = new SplFileObject($url, "r");
@@ -148,10 +150,11 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            $url = ConvertMbstringEncoding::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
         }
         $file = new SplFileObject($url, "w");
         $file->fwrite($content);
+        $file = null; // kill pointer
     }
 
     /**
@@ -165,10 +168,11 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            $url = ConvertMbstringEncoding::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
         }
         $file = new SplFileObject($url, "a");
         $file->fwrite($content);
+        $file = null; // kill pointer
     }
 
     /**
@@ -241,10 +245,12 @@ class IOUtil
         foreach ($objects as $object) {
             if ($object != "." && $object != "..") {
                 $file = self::combinePaths($pathToDir, $object);
-                if (is_dir($file))
+                if (is_dir($file)) {
                     self::deleteDirectory($file);
-                else
+                }
+                else {
                     unlink($file);
+                }
             }
         }
         rmdir($pathToDir);
@@ -300,73 +306,54 @@ class IOUtil
      * @param string $enclosure [optional]. Default: ".
      * @param string $escape [optional]. Default: ".
      */
-    public static function writeCsvFile($pathToFile, $rows, $withHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\"")
+    public static function writeCsvFile($pathToFile, $rows, $withHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\\")
     {
-        $config = new ExporterConfig();
-        $config->setDelimiter($delimiter);
-//        $config->setFromCharset(mb_internal_encoding());
-        if ($encoding !== null) {
-            $config->setToCharset($encoding);
+        EncodingStreamFilter::register();
+
+        $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+        $obj = new SplFileObject($url, "w");
+        $writer = Writer::createFromFileObject($obj);
+        $writer->setDelimiter($delimiter);
+        $writer->setEnclosure($enclosure);
+        $writer->setEscape($escape);
+//        $writer->setNewline("\r\n");
+        if(count($rows) > 0 && $withHeader){
+            $first = reset($rows);
+            $keys = array_keys($first);
+            $rows = array_merge([$keys],$rows);
         }
-        $config->setEnclosure($enclosure);
-        $config->setEscape($escape);
-        if ($rows instanceof CsvRows) {
-            $rows = $rows->toArray($withHeader);
-        }else{ // is a normal array
-            if(count($rows) > 0 && $withHeader){
-                $first = reset($rows);
-                $keys = array_keys($first);
-                $rows = array_merge([$keys],$rows);
-            }
-        }
-        $exporter = new Exporter($config);
-        $exporter->export($pathToFile, $rows);
+        $writer->insertAll($rows);
     }
 
     /**
      * @param string $pathToFile
      * @param bool $hasHeader [optional]. Default: true.
-     * @param null $encoding [optional]. Default: null.
+     * @param null $encoding [optional]. Default: null. (null: no conversion is performed - file as read "as is")
      * @param string $delimiter [optional]. Default: ,.
      * @param string $enclosure [optional]. Default: ".
-     * @param string $escape [optional]. Default: ".
-     * @return CsvRows
+     * @param string $escape [optional]. Default: \.
+     * @return string[][]
      */
-    public static function readCsvFile($pathToFile, $hasHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\"")
+    public static function readCsvFile($pathToFile, $hasHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\\")
     {
-        $config = new LexerConfig();
-        $config->setDelimiter($delimiter);
-        if ($encoding !== null) {
-            $config->setFromCharset($encoding);
+        $reader = Reader::createFromPath($pathToFile);
+        if($encoding !== null) {
+            $reader->prependStreamFilter(EncodingStreamFilter::getFilterWithParameters($encoding));
         }
-        $config->setToCharset(mb_internal_encoding());
-        $config->setEnclosure($enclosure);
-        $config->setEscape($escape);
-        $config->setIgnoreHeaderLine(false);
-        $lexer = new Lexer($config);
-        $interpreter = new Interpreter();
-        $rows = new CsvRows();
-        $first = true;
-        $interpreter->addObserver(function (array $row) use (&$rows, &$first, $hasHeader) {
-            if ($first) {
-                $first = false;
-                $headline = [];
-                if ($hasHeader) {
-                    foreach ($row as $key => $header) {
-                        $headline[$key] = $header;
-                    }
-                    $rows->setHeadline($headline);
-                    return;
-                }
-                $headline = array_keys($row);
-                $rows->setHeadline($headline);
-            }
-            $rows->addRow($row);
-        });
-        $lexer->parse($pathToFile, $interpreter);
-        return $rows;
+        $reader->setDelimiter($delimiter);
+        $reader->setEnclosure($enclosure);
+        $reader->setEscape($escape);
+//        $reader->setOffset($offset);
+//        $reader->setLimit($length);
+        $reader->setNewline("\r\n");
+        $reader->setFlags(SplFileObject::READ_AHEAD|SplFileObject::SKIP_EMPTY);
+        if($hasHeader){
+            $result = $reader->fetchAssoc();
+        }else{
+            $result = $reader->fetchAll();
+        }
+        return $result;
     }
-
 }
 
-ConvertMbstringEncoding::register();
+EncodingStreamFilter::register();
