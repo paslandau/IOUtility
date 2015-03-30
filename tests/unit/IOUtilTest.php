@@ -276,7 +276,8 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
             $excMsg = "";
             try {
-                $m = end(explode(":",$callingMethod));
+                $arr = explode(":",$callingMethod);
+                $m = end($arr);
                 $path = IOUtil::combinePaths($tmpFolder, $test . "_{$m}_write.csv");
                 IOUtil::writeCsvFile($path, $input, $hasHeadline, $encoding, $seperator, $quotation);
                 $actual = IOUtil::getFileContent($path, $encoding);
@@ -335,7 +336,8 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
             $excMsg = "";
             try {
-                $m = end(explode(":",$callingMethod));
+                $arr = explode(":",$callingMethod);
+                $m = end($arr);
                 $path = IOUtil::combinePaths($tmpFolder, $test . "_{$m}_read.csv");
                 IOUtil::writeFileContent($path, $input, $encoding);
                 $actual = IOUtil::readCsvFile($path, $hasHeadline, $encoding, $seperator, $quotation);
