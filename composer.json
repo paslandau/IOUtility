@@ -18,9 +18,9 @@
     "repositories": [ { "type": "composer", "url": "http://packages.myseosolution.de/"} ],
     "minimum-stability": "dev",
     "require" : {
-        "php": "~5.5",
-        "ext-mbstring": "*",
-        "goodby/csv": "~1.1"
+      "php": "~5.5",
+      "ext-mbstring": "*",
+      "league/csv": "~7.0.1"
     },
     "require-dev" : {
         "phpunit/phpunit": "~4",
