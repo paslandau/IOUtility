@@ -2,15 +2,8 @@
 
 namespace paslandau\IOUtility;
 
-use Goodby\CSV\Export\Standard\Exporter;
-use Goodby\CSV\Export\Standard\ExporterConfig;
-use Goodby\CSV\Import\Standard\Interpreter;
-use Goodby\CSV\Import\Standard\Lexer;
-use Goodby\CSV\Import\Standard\LexerConfig;
-use Goodby\CSV\Import\Standard\StreamFilter\ConvertMbstringEncoding;
 use League\Csv\Reader;
 use League\Csv\Writer;
-use paslandau\IOUtility\Csv\CsvRows;
 use paslandau\IOUtility\Exceptions\IOException;
 use SplFileObject;
 
@@ -25,42 +18,12 @@ class IOUtil
      */
     public static function combinePaths($front, $back)
     {
-        if(self::isAbsolute($back)){
+        if (self::isAbsolute($back)) {
             $filepath = $back;
-        }else {
+        } else {
             $filepath = $front . DIRECTORY_SEPARATOR . $back;
         }
         return self::getAbsolutePath($filepath);
-    }
-
-    /**
-     * Workaround for 'realpath' not being able to resolve non existant files
-     * @see http://php.net/manual/en/function.realpath.php#84012
-     * @param $path
-     * @return string
-     */
-    private static function getAbsolutePath($path)
-    {
-        $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
-        $abs = "";
-        if(mb_substr($path,0,strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
-            $abs = DIRECTORY_SEPARATOR;
-        }
-        $end = "";
-        if(mb_substr($path,-strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR){
-            $end = DIRECTORY_SEPARATOR;
-        }
-        $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
-        $absolutes = array();
-        foreach ($parts as $part) {
-            if ('.' == $part) continue;
-            if ('..' == $part) {
-                array_pop($absolutes);
-            } else {
-                $absolutes[] = $part;
-            }
-        }
-        return $abs.implode(DIRECTORY_SEPARATOR, $absolutes).$end;
     }
 
     /**
@@ -94,11 +57,10 @@ class IOUtil
         return ($path[0] == '/' || $path[0] == '\\');
     }
 
-
     /**
      * Gets the full content of the given $pathToFile
      * @param string $pathToFile
-     * @param null|string $encoding . [optional]. Default: null.
+     * @param null|string|EncodingStreamSettings $encoding [optional]. Default: null.
      * @return string
      */
     public static function getFileContent($pathToFile, $encoding = null)
@@ -111,9 +73,9 @@ class IOUtil
     /**
      *  Gets the full content of the given $pathToFile as array of lines in that file
      * @param string $pathToFile
-     * @param bool $removeLineEndings . [optional]. Default: true.
-     * @param bool $removeEmptyLines . [optional]. Default: true.
-     * @param null|string $encoding . [optional]. Default: null.
+     * @param bool $removeLineEndings [optional]. Default: true.
+     * @param bool $removeEmptyLines [optional]. Default: true.
+     * @param null|string|EncodingStreamSettings $encoding [optional]. Default: null.
      * @return string[]
      */
     public static function getFileContentLines($pathToFile, $removeLineEndings = true, $removeEmptyLines = true, $encoding = null)
@@ -121,6 +83,9 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
+            if(! ($encoding instanceof EncodingStreamSettings)){
+                $encoding = new EncodingStreamSettings($encoding,mb_internal_encoding(),false);
+            }
             $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
 
@@ -143,14 +108,17 @@ class IOUtil
      * Writes $content to $pathToFile
      * @param string $pathToFile
      * @param string $content
-     * @param null|string $encoding . [optional]. Default: null.
+     * @param null|string|EncodingStreamSettings $encoding [optional]. Default: null.
      */
     public static function writeFileContent($pathToFile, $content, $encoding = null)
     {
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+            if(! ($encoding instanceof EncodingStreamSettings)){
+                $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+            }
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
         $file = new SplFileObject($url, "w");
         $file->fwrite($content);
@@ -161,14 +129,17 @@ class IOUtil
      * Appends $content to $pathToFile
      * @param string $pathToFile
      * @param string $content
-     * @param null|string $encoding . [optional]. Default: null.
+     * @param null|string|EncodingStreamSettings $encoding [optional]. Default: null.
      */
     public static function appendFileContent($pathToFile, $content, $encoding = null)
     {
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+            if(! ($encoding instanceof EncodingStreamSettings)){
+                $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+            }
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
         $file = new SplFileObject($url, "a");
         $file->fwrite($content);
@@ -247,8 +218,7 @@ class IOUtil
                 $file = self::combinePaths($pathToDir, $object);
                 if (is_dir($file)) {
                     self::deleteDirectory($file);
-                }
-                else {
+                } else {
                     unlink($file);
                 }
             }
@@ -283,7 +253,7 @@ class IOUtil
             throw new \UnexpectedValueException("pathToSourceDir '$pathToSourceDir' must be a directory!");
         }
         self::createDirectoryIfNotExists($pathToTargetDir, 0777, true);
-        if(!is_dir($pathToTargetDir)) {
+        if (!is_dir($pathToTargetDir)) {
             throw new \UnexpectedValueException("pathToTargetDir '$pathToTargetDir' must be a directory!");
         }
         $iterator = new \RecursiveIteratorIterator (new \RecursiveDirectoryIterator ($pathToSourceDir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
@@ -299,28 +269,39 @@ class IOUtil
 
     /**
      * @param string $pathToFile
-     * @param CsvRows|string[] $rows
+     * @param string[][] $rows
      * @param bool $withHeader [optional]. Default: true. Adds an additional line on top (uses CsvRows->headline OR the keys of the first row of the string[])
-     * @param null $encoding [optional]. Default: null.
+     * @param string|EncodingStreamSettings|null $encoding [optional]. Default: null (null: no conversion is performed - file as read "as is").
      * @param string $delimiter [optional]. Default: ,.
      * @param string $enclosure [optional]. Default: ".
      * @param string $escape [optional]. Default: ".
      */
-    public static function writeCsvFile($pathToFile, $rows, $withHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\\")
+    public static function writeCsvFile($pathToFile, $rows, $withHeader = true, $encoding = null, $delimiter = null, $enclosure = null, $escape = null)
     {
-        EncodingStreamFilter::register();
+        if($delimiter === null){
+            $delimiter = ",";
+        }
+        if($enclosure === null){
+            $enclosure = "\"";
+        }
+        if($escape === null){
+            $escape = "\\";
+        }
 
-        $url = EncodingStreamFilter::getFilterURL($pathToFile, mb_internal_encoding(), $encoding);
+        if(! ($encoding instanceof EncodingStreamSettings)){
+            $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+        }
+
+        $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         $obj = new SplFileObject($url, "w");
         $writer = Writer::createFromFileObject($obj);
         $writer->setDelimiter($delimiter);
         $writer->setEnclosure($enclosure);
         $writer->setEscape($escape);
-//        $writer->setNewline("\r\n");
-        if(count($rows) > 0 && $withHeader){
+        if (count($rows) > 0 && $withHeader) {
             $first = reset($rows);
             $keys = array_keys($first);
-            $rows = array_merge([$keys],$rows);
+            $rows = array_merge([$keys], $rows);
         }
         $writer->insertAll($rows);
     }
@@ -328,31 +309,95 @@ class IOUtil
     /**
      * @param string $pathToFile
      * @param bool $hasHeader [optional]. Default: true.
-     * @param null $encoding [optional]. Default: null. (null: no conversion is performed - file as read "as is")
+     * @param string|EncodingStreamSettings|null $encoding [optional]. Default: null (null: no conversion is performed - file as read "as is").
      * @param string $delimiter [optional]. Default: ,.
      * @param string $enclosure [optional]. Default: ".
      * @param string $escape [optional]. Default: \.
-     * @return string[][]
+     * @param null|callable $fn [optional]. Default: null. Callable, that will be applied to each row. See Reader::fetchAssoc() / Reader::fetchAll()
+     * @param int $offset [optional]. Default: 0.
+     * @param int $limit [optional]. Default: -1.
+     * @return \string[][]
      */
-    public static function readCsvFile($pathToFile, $hasHeader = true, $encoding = null, $delimiter = ",", $enclosure = "\"", $escape = "\\")
+    public static function readCsvFile($pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
     {
-        $reader = Reader::createFromPath($pathToFile);
-        if($encoding !== null) {
-            $reader->prependStreamFilter(EncodingStreamFilter::getFilterWithParameters($encoding));
+        if($hasHeader === null){
+            $hasHeader = true;
         }
-        $reader->setDelimiter($delimiter);
-        $reader->setEnclosure($enclosure);
-        $reader->setEscape($escape);
-//        $reader->setOffset($offset);
-//        $reader->setLimit($length);
-        $reader->setNewline("\r\n");
-        $reader->setFlags(SplFileObject::READ_AHEAD|SplFileObject::SKIP_EMPTY);
-        if($hasHeader){
-            $result = $reader->fetchAssoc();
-        }else{
-            $result = $reader->fetchAll();
+        if($limit === null){
+            $limit = -1;
         }
+        if($offset === null){
+            $offset = 0;
+        }
+        if($delimiter === null){
+            $delimiter = ",";
+        }
+        if($enclosure === null){
+            $enclosure = "\"";
+        }
+        if($escape === null){
+            $escape = "\\";
+        }
+
+        if(! ($encoding instanceof EncodingStreamSettings)){
+            $encoding = new EncodingStreamSettings($encoding,mb_internal_encoding(),false);
+        }
+
+        $url = $pathToFile;
+        if ($encoding !== null) {
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
+        }
+
+            $obj = new SplFileObject($url, "r");
+//        $reader = Reader::createFromPath($pathToFile);
+            $reader = Reader::createFromFileObject($obj);
+//        if($encoding !== null) {
+//            $reader->prependStreamFilter(EncodingStreamFilter::getFilterWithParameters($encoding));
+//        }
+            $reader->setDelimiter($delimiter);
+            $reader->setEnclosure($enclosure);
+            $reader->setEscape($escape);
+            $reader->setOffset($offset);
+            $reader->setLimit($limit);
+//        $reader->setNewline("\r\n");
+//            $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
+        $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY);
+            if ($hasHeader) {
+                $result = $reader->fetchAssoc(0, $fn);
+            } else {
+                $result = $reader->fetchAll($fn);
+            }
         return $result;
+    }
+
+    /**
+     * Workaround for 'realpath' not being able to resolve non existant files
+     * @see http://php.net/manual/en/function.realpath.php#84012
+     * @param $path
+     * @return string
+     */
+    private static function getAbsolutePath($path)
+    {
+        $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
+        $abs = "";
+        if (mb_substr($path, 0, strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR) {
+            $abs = DIRECTORY_SEPARATOR;
+        }
+        $end = "";
+        if (mb_substr($path, -strlen(DIRECTORY_SEPARATOR)) === DIRECTORY_SEPARATOR) {
+            $end = DIRECTORY_SEPARATOR;
+        }
+        $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
+        $absolutes = array();
+        foreach ($parts as $part) {
+            if ('.' == $part) continue;
+            if ('..' == $part) {
+                array_pop($absolutes);
+            } else {
+                $absolutes[] = $part;
+            }
+        }
+        return $abs . implode(DIRECTORY_SEPARATOR, $absolutes) . $end;
     }
 }
 

@@ -2,6 +2,8 @@
 
 use Goodby\CSV\Export\Standard\Exception\StrictViolationException;
 use paslandau\ArrayUtility\ArrayUtil;
+use paslandau\IOUtility\EncodingStreamFilter;
+use paslandau\IOUtility\EncodingStreamSettings;
 use paslandau\IOUtility\IOUtil;
 
 class IOUtilTest extends PHPUnit_Framework_TestCase {
@@ -13,6 +15,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
     public static function setupBeforeClass(){
         mb_internal_encoding("utf-8");
 
+        gc_collect_cycles();
         $dir = self::getTmpDirPath();
         IOUtil::deleteDirectory($dir);
         IOUtil::createDirectoryIfNotExists($dir);
@@ -20,6 +23,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
     public static function tearDownAfterClass()
     {
+        gc_collect_cycles();
         $dir = self::getTmpDirPath();
         IOUtil::deleteDirectory($dir);
     }
@@ -30,7 +34,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $content = "A sentence with german umlauts like äöüß to check for encoding problems.";
 
         $encs = [
-            "Cp1252",
+            "CP1252",
             "ISO-8859-1",
             "UTF-8"
         ];
@@ -44,7 +48,7 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
             $this->assertTrue(file_exists($file));
 
             $contentOut = IOUtil::getFileContent($file, $encoding);
-            $this->assertEquals($content, $contentOut);
+            $this->assertEquals($content, $contentOut, "Error at $encoding");
         }
     }
 
@@ -241,10 +245,6 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $tests["input-2-lines"]["expected-headline"] = [["foo" => "foo", "bar" => "bar"], ["foo" => "baz", "bar" => "test"]];
         $tests["input-2-lines"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
 
-        // this test makes no sense during reading
-//        $tests["input-2-lines-different-column-names"]["expected-headline"] = [["foo" => "foo", "bar" => "bar"], ["foo_diff" => "baz", "bar_diff" => "test"]];
-//        $tests["input-2-lines-different-column-names"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}bar{$lineEnding}baz{$seperator}test" . $lineEnding;
-
         $tests["input-1-line-quotation"]["expected-headline"] = [["foo" => "foo", "bar" => "the escape > $quotation < "]];
         $tests["input-1-line-quotation"]["input"] = "foo{$seperator}bar{$lineEnding}foo{$seperator}{$quotation}the escape > {$quotation}$quotation < {$quotation}" . $lineEnding;
 
@@ -341,7 +341,6 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
                 $path = IOUtil::combinePaths($tmpFolder, $test . "_{$m}_read.csv");
                 IOUtil::writeFileContent($path, $input, $encoding);
                 $actual = IOUtil::readCsvFile($path, $hasHeadline, $encoding, $seperator, $quotation);
-
             } catch (\Exception $e) {
                 $actual = get_class($e);
                 $excMsg = " (".$e->getMessage().")";
@@ -446,6 +445,38 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $hasHeadline = false;
 
         $this->_readingTest($encoding,$hasHeadline,$seperator,$quotation,__METHOD__);
+    }
+
+    public function test_ShouldReadUtf8Uncorrupted(){
+        // prepare problemtic payload:
+        // The stream filter will read payload in 8192 byte chunks
+        // making the 8192nd character two bytes long (like the "ü" in utf8) will result in a corrupted input string
+        // ==> LATIN SMALL LETTER U WITH DIAERESIS => ü => U+00FC @see http://www.utf8-zeichentabelle.de/
+        $content = implode("",array_fill(0,8191,"a"))."ü";
+        $cp1252 = "cp1252";
+        $utf8 = "utf-8";
+
+        // write utf-8 formatted content to file
+        $dir = self::getTmpDirPath();
+        $url = IOUtil::combinePaths($dir,"csv_corrupted_encoding_test");
+        IOUtil::writeFileContent($url,$content); // write without conversion [content is in utf-8]
+
+        // prepare a cp1252 formatted string to compare what we read from the file
+        $cp1252content = mb_convert_encoding($content, $cp1252, $utf8);
+
+        //read content / will be converted from utf-8 to cp1252
+        $settings = new EncodingStreamSettings($utf8,$cp1252,false);
+        $urlToCp1252 = EncodingStreamFilter::getFilterURL($url,$settings);
+        $readContent = IOUtil::getFileContent($urlToCp1252);
+        // since we did not choose to convert the content "checked" via EncodingStreamSettings, the "ü" will be split in half
+        // and cannot be decoded properly
+        $this->assertNotEquals($cp1252content,$readContent,"The read content should be corrupted.");
+
+        //read content / will be converted to cp1252
+        $settings = new EncodingStreamSettings($utf8,$cp1252,true); // this will work since the conversion is "checked"
+        $urlToCp1252 = EncodingStreamFilter::getFilterURL($url,$settings);
+        $readContentUncorrupted = IOUtil::getFileContent($urlToCp1252);
+        $this->assertEquals($cp1252content,$readContentUncorrupted,"The read content should not be corrupted.");
     }
 }
  

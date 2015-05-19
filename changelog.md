@@ -1,8 +1,9 @@
 #dev-master
  
  - switched CSV library from [Goodby\csv](https://github.com/goodby/csv) to [League\csv](https://github.com/thephpleague/csv) after encountering performance issues with Goodby
- - removed CsvRows class since it wasn't useful in pratice
+ - removed CsvRows class since it wasn't useful in practice
  - added more comprehensive tests for csv files
+ - introduced EncodingStreamSettings as a more comprehensive means of defining an encoding. Background: A bug that appeared upon reading utf-8 encoded files in that a character was 2 bytes long and was torn apart during the chunked reading of the `EncodingStreamFilter`
 
 ###0.1.1
 
