@@ -4,6 +4,8 @@
  - keep an eye on bug [https://bugs.php.net/bug.php?id=43225](https://bugs.php.net/bug.php?id=43225) (writing/reading fails on \" values)
  
 #dev-master
+
+###0.1.2
  
  - update to newest version of [League\csv](https://github.com/thephpleague/csv) once dev-master got tagged due to [issue #99: SplFileObject Flags have no effect / empty lines cannot be ignored](https://github.com/thephpleague/csv/issues/99)
  - switched CSV library from [Goodby\csv](https://github.com/goodby/csv) to [League\csv](https://github.com/thephpleague/csv) after encountering performance issues with Goodby
