@@ -399,6 +399,16 @@ class IOUtil
         }
         return $abs . implode(DIRECTORY_SEPARATOR, $absolutes) . $end;
     }
+
+    /**
+     * Returns the path of a temporary file. Don't forget to unlink() it after usage!
+     * @return string
+     * @todo TEST
+     */
+    public static function getPathToTempFile(){
+        $tmpFile = tempnam(sys_get_temp_dir(), "TMP");
+        return $tmpFile;
+    }
 }
 
 EncodingStreamFilter::register();
