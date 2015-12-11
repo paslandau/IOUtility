@@ -6,6 +6,8 @@
  
 #dev-master
 
+##0.8
+
  - added IOUtil::getPathToTempFile() *not tested yet*
 
 ###0.1.2
