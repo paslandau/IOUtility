@@ -420,7 +420,7 @@ class IOUtil
      * @return string
      * @todo TEST
      */
-    private function tail($filename, $lines = 10, $buffer = 4096)
+    public static function tail($filename, $lines = 10, $buffer = 4096)
     {
         // Open the file
         $f = fopen($filename, "rb");
