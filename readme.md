@@ -8,7 +8,7 @@ IO library for file operations - mostly for convenience on commmon actions
 ##Requirements
 
 - PHP >= 5.5
-- goodby/csv >= 1.1
+- league/csv >= 8.0
 
 ##Installation
 

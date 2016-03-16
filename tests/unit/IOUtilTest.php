@@ -228,7 +228,8 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
 
         $tests["input-one-empty-line"]["input"] = $lineEnding . $lineEnding;
         $tests["input-one-empty-line"]["expected-headline"] = "InvalidArgumentException";
-        $tests["input-one-empty-line"]["expected"] = [[null],[null]];
+//        $tests["input-one-empty-line"]["expected"] = [[null],[null]]; // since league/csv 8.0.0
+        $tests["input-one-empty-line"]["expected"] = [];
 
         $tests["input-one-line-numerical-columns"]["input"] = "0{$seperator}1{$lineEnding}foo{$seperator}bar" . $lineEnding;
         $tests["input-one-line-numerical-columns"]["expected-headline"] = [[0 => "foo", 1 => "bar"]];
@@ -477,6 +478,42 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $urlToCp1252 = EncodingStreamFilter::getFilterURL($url,$settings);
         $readContentUncorrupted = IOUtil::getFileContent($urlToCp1252);
         $this->assertEquals($cp1252content,$readContentUncorrupted,"The read content should not be corrupted.");
+    }
+
+    public function test_walkCsvFile(){
+
+        //prepare the file
+        $csv = [
+            ["col1" => "a", "col2" => "b"],
+            ["col1" => "c", "col2" => "d"],
+            ["col1" => "e", "col2" => "f"],
+            ["col1" => "g", "col2" => "h"],
+        ];
+
+        $file = IOUtil::combinePaths($this->getTmpDirPath(),"walkCsvTest.csv");
+        IOUtil::writeCsvFile($file,$csv,true);
+
+        // all lines should end up in the pseudo db
+        // in batches of the size if $chunkSize
+        $pseudoDb = [];
+        $chunkSize = 2;
+        $callback = function ($lines) use(&$pseudoDb){
+            $pseudoDb[] = $lines;
+        };
+        IOUtil::walkCsvFile($callback,$chunkSize,$file,true);
+
+        $expected = [
+          [
+              ["col1" => "a", "col2" => "b"],
+              ["col1" => "c", "col2" => "d"],
+          ],
+          [
+              ["col1" => "e", "col2" => "f"],
+              ["col1" => "g", "col2" => "h"],
+          ],
+        ];
+
+        $this->assertSame($expected,$pseudoDb);
     }
 }
  

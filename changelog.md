@@ -6,6 +6,12 @@
  
 #dev-master
 
+##0.8.1
+
+ - upgraded to league/csv v8
+ - added IOUtil::walkCsvFile() to apply a callback to a chunk of data *not tested yet*
+ - added IOUtil::getCsvReader() to be able to access a CSV Reader object *not tested yet*
+
 ##0.8
 
  - added IOUtil::getPathToTempFile() *not tested yet*

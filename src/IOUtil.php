@@ -83,8 +83,8 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            if(! ($encoding instanceof EncodingStreamSettings)){
-                $encoding = new EncodingStreamSettings($encoding,mb_internal_encoding(),false);
+            if (!($encoding instanceof EncodingStreamSettings)) {
+                $encoding = new EncodingStreamSettings($encoding, mb_internal_encoding(), false);
             }
             $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
@@ -115,8 +115,8 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            if(! ($encoding instanceof EncodingStreamSettings)){
-                $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+            if (!($encoding instanceof EncodingStreamSettings)) {
+                $encoding = new EncodingStreamSettings(mb_internal_encoding(), $encoding, false);
             }
             $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
@@ -136,8 +136,8 @@ class IOUtil
         if ($encoding === null) {
             $url = $pathToFile;
         } else {
-            if(! ($encoding instanceof EncodingStreamSettings)){
-                $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+            if (!($encoding instanceof EncodingStreamSettings)) {
+                $encoding = new EncodingStreamSettings(mb_internal_encoding(), $encoding, false);
             }
             $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
         }
@@ -278,18 +278,18 @@ class IOUtil
      */
     public static function writeCsvFile($pathToFile, $rows, $withHeader = true, $encoding = null, $delimiter = null, $enclosure = null, $escape = null)
     {
-        if($delimiter === null){
+        if ($delimiter === null) {
             $delimiter = ",";
         }
-        if($enclosure === null){
+        if ($enclosure === null) {
             $enclosure = "\"";
         }
-        if($escape === null){
+        if ($escape === null) {
             $escape = "\\";
         }
 
-        if(! ($encoding instanceof EncodingStreamSettings)){
-            $encoding = new EncodingStreamSettings(mb_internal_encoding(),$encoding,false);
+        if (!($encoding instanceof EncodingStreamSettings)) {
+            $encoding = new EncodingStreamSettings(mb_internal_encoding(), $encoding, false);
         }
 
         $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
@@ -306,6 +306,109 @@ class IOUtil
         $writer->insertAll($rows);
     }
 
+
+
+    public static function walkCsvFile(Callable $callback, $chunkSize, $pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
+    {
+        $reader = self::getCsvReader($pathToFile, $encoding, $delimiter, $enclosure, $escape, $offset, $limit);
+        if ($hasHeader) {
+            $iter = $reader->fetchAssoc(0, $fn);
+        } else {
+            $iter = $reader->fetch($fn);
+        }
+
+        $buffer = [];
+        foreach($iter as $key => $line){
+            $buffer[] = $line;
+            if (count($buffer) % $chunkSize === 0) {
+                $callback($buffer);
+                $buffer = [];
+            }
+        }
+        if (count($buffer) > 0) {
+            $callback($buffer);
+        }
+    }
+//    public static function walkCsvFile($callback, $chunkSize, $pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
+//    {
+//        $buffer = [];
+//        $walkerFn = function ($line) use (&$buffer, $callback, $chunkSize, $fn) {
+//            /**
+//             * Apply the given line-callback
+//             * @var Callable $fn ;
+//             */
+//            if ($fn !== null) {
+//                $line = $fn($line);
+//            }
+//            $buffer[] = $line;
+//            if (count($buffer) % $chunkSize === 0) {
+//                $callback($buffer);
+//                $buffer = [];
+//            }
+//            return $line;
+////            return false; // make sure we don't waste memory by saving the lines somewhere else in addtion to $buffer
+//        };
+//        self::readCsvFile($pathToFile, $hasHeader, $encoding, $delimiter, $enclosure, $escape, $walkerFn, $offset, $limit);
+//        if (count($buffer) > 0) {
+//            $callback($buffer);
+//        }
+//    }
+
+    /**
+     * @param string $pathToFile
+     * @param string|EncodingStreamSettings|null $encoding [optional]. Default: null (null: no conversion is performed - file as read "as is").
+     * @param string $delimiter [optional]. Default: ,.
+     * @param string $enclosure [optional]. Default: ".
+     * @param string $escape [optional]. Default: \.
+     * @param int $offset [optional]. Default: 0.
+     * @param int $limit [optional]. Default: -1.
+     * @return Reader
+     * @todo TEST
+     */
+    public static function getCsvReader($pathToFile, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $offset = null, $limit = null)
+    {
+        if ($limit === null) {
+            $limit = -1;
+        }
+        if ($offset === null) {
+            $offset = 0;
+        }
+        if ($delimiter === null) {
+            $delimiter = ",";
+        }
+        if ($enclosure === null) {
+            $enclosure = "\"";
+        }
+        if ($escape === null) {
+            $escape = "\\";
+        }
+
+        if (!($encoding instanceof EncodingStreamSettings)) {
+            $encoding = new EncodingStreamSettings($encoding, mb_internal_encoding(), false);
+        }
+
+        $url = $pathToFile;
+        if ($encoding !== null) {
+            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
+        }
+
+        $obj = new SplFileObject($url, "r");
+//        $reader = Reader::createFromPath($pathToFile);
+        $reader = Reader::createFromFileObject($obj);
+//        if($encoding !== null) {
+//            $reader->prependStreamFilter(EncodingStreamFilter::getFilterWithParameters($encoding));
+//        }
+        $reader->setDelimiter($delimiter);
+        $reader->setEnclosure($enclosure);
+        $reader->setEscape($escape);
+        $reader->setOffset($offset);
+        $reader->setLimit($limit);
+//        $reader->setNewline("\r\n");
+//            $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
+//        $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY);
+        return $reader;
+    }
+
     /**
      * @param string $pathToFile
      * @param bool $hasHeader [optional]. Default: true.
@@ -320,53 +423,13 @@ class IOUtil
      */
     public static function readCsvFile($pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
     {
-        if($hasHeader === null){
-            $hasHeader = true;
+        $reader = self::getCsvReader($pathToFile, $encoding, $delimiter, $enclosure, $escape, $offset, $limit);
+        if ($hasHeader) {
+            $iter = $reader->fetchAssoc(0, $fn);
+            $result = iterator_to_array($iter, false);
+        } else {
+            $result = $reader->fetchAll($fn);
         }
-        if($limit === null){
-            $limit = -1;
-        }
-        if($offset === null){
-            $offset = 0;
-        }
-        if($delimiter === null){
-            $delimiter = ",";
-        }
-        if($enclosure === null){
-            $enclosure = "\"";
-        }
-        if($escape === null){
-            $escape = "\\";
-        }
-
-        if(! ($encoding instanceof EncodingStreamSettings)){
-            $encoding = new EncodingStreamSettings($encoding,mb_internal_encoding(),false);
-        }
-
-        $url = $pathToFile;
-        if ($encoding !== null) {
-            $url = EncodingStreamFilter::getFilterURL($pathToFile, $encoding);
-        }
-
-            $obj = new SplFileObject($url, "r");
-//        $reader = Reader::createFromPath($pathToFile);
-            $reader = Reader::createFromFileObject($obj);
-//        if($encoding !== null) {
-//            $reader->prependStreamFilter(EncodingStreamFilter::getFilterWithParameters($encoding));
-//        }
-            $reader->setDelimiter($delimiter);
-            $reader->setEnclosure($enclosure);
-            $reader->setEscape($escape);
-            $reader->setOffset($offset);
-            $reader->setLimit($limit);
-//        $reader->setNewline("\r\n");
-//            $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
-        $reader->setFlags(SplFileObject::READ_AHEAD | SplFileObject::SKIP_EMPTY);
-            if ($hasHeader) {
-                $result = $reader->fetchAssoc(0, $fn);
-            } else {
-                $result = $reader->fetchAll($fn);
-            }
         return $result;
     }
 
@@ -405,7 +468,8 @@ class IOUtil
      * @return string
      * @todo TEST
      */
-    public static function getPathToTempFile(){
+    public static function getPathToTempFile()
+    {
         $tmpFile = tempnam(sys_get_temp_dir(), "TMP");
         return $tmpFile;
     }
