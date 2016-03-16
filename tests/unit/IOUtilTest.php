@@ -500,7 +500,8 @@ class IOUtilTest extends PHPUnit_Framework_TestCase {
         $callback = function ($lines) use(&$pseudoDb){
             $pseudoDb[] = $lines;
         };
-        IOUtil::walkCsvFile($callback,$chunkSize,$file,true);
+        $count = IOUtil::walkCsvFile($callback,$chunkSize,$file,true);
+        $this->assertSame(count($csv),$count);
 
         $expected = [
           [

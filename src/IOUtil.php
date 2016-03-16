@@ -307,7 +307,21 @@ class IOUtil
     }
 
 
-
+    /**
+     * Applies $callback to a chunk read from the CSVfile
+     * @param callable $callback
+     * @param $chunkSize
+     * @param string $pathToFile
+     * @param bool $hasHeader [optional]. Default: true.
+     * @param string|EncodingStreamSettings|null $encoding [optional]. Default: null (null: no conversion is performed - file as read "as is").
+     * @param string $delimiter [optional]. Default: ,.
+     * @param string $enclosure [optional]. Default: ".
+     * @param string $escape [optional]. Default: \.
+     * @param null|callable $fn [optional]. Default: null. Callable, that will be applied to each row. See Reader::fetchAssoc() / Reader::fetchAll()
+     * @param int $offset [optional]. Default: 0.
+     * @param int $limit [optional]. Default: -1.
+     * @return int - number of total rows
+     */
     public static function walkCsvFile(Callable $callback, $chunkSize, $pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
     {
         $reader = self::getCsvReader($pathToFile, $encoding, $delimiter, $enclosure, $escape, $offset, $limit);
@@ -318,7 +332,9 @@ class IOUtil
         }
 
         $buffer = [];
+        $count = 0;
         foreach($iter as $key => $line){
+            $count++;
             $buffer[] = $line;
             if (count($buffer) % $chunkSize === 0) {
                 $callback($buffer);
@@ -328,6 +344,7 @@ class IOUtil
         if (count($buffer) > 0) {
             $callback($buffer);
         }
+        return $count;
     }
 //    public static function walkCsvFile($callback, $chunkSize, $pathToFile, $hasHeader = null, $encoding = null, $delimiter = null, $enclosure = null, $escape = null, $fn = null, $offset = null, $limit = null)
 //    {
