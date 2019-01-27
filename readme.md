@@ -1,16 +1,22 @@
-#io-utility
+# DEPRECATED ⛔ 
+
+This repository has been deprecated as of 2019-01-27. That code was written a long time ago and has been unmaintained for several years. Thus, repository will now be [archived](https://github.blog/2017-11-08-archiving-repositories/).If you are interested in taking over ownership, feel free to [contact me](https://www.pascallandau.com/about/).
+
+---
+
+# io-utility
 [![Build Status](https://travis-ci.org/paslandau/io-utility.svg?branch=master)](https://travis-ci.org/paslandau/io-utility)
 
 IO library for file operations - mostly for convenience on commmon actions
 
-##Description
+## Description
 
-##Requirements
+## Requirements
 
 - PHP >= 5.5
 - league/csv >= 8.0
 
-##Installation
+## Installation
 
 The recommended way to install io-utility is through [Composer](http://getcomposer.org/).
 
